@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- TAG OBRIGATÓRIA PARA NETLIFY -->
+    <base href="/">
+    <title>Fretta - Logística Premium</title>
+    
+    <!-- SDKs Essenciais -->
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --primary: #0f766e; --primary-light: #14b8a6; --bg: #f8fafc; --card: #ffffff; 
+            --text: #0f172a; --text-muted: #64748b; --border: #e2e8f0; 
+            --driver: #2563eb; --radius: 20px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root { --bg: #020617; --card: #0f172a; --text: #f8fafc; --text-muted: #94a3b8; --border: #1e293b; }
+            input, textarea { background: #1e293b !important; color: white !important; border-color: #334155 !important; }
+            nav { background: rgba(2, 6, 23, 0.95) !important; border-top-color: #1e293b !important; }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 100px; min-height: 100vh; overflow-x: hidden; }
+        
+        header { 
+            background: linear-gradient(135deg, var(--primary), #0d9488); 
+            color: white; padding: 28px 24px 32px; display: flex; justify-content: space-between; align-items: center; 
+            position: sticky; top: 0; z-index: 100; border-radius: 0 0 32px 32px; box-shadow: 0 10px 30px -10px rgba(15, 118, 110, 0.4);
+        }
+        .logo-wrap { display: flex; align-items: center; gap: 14px; }
+        .logo-svg { width: 38px; height: 38px; fill: white; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
+        h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+        .badge { font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px; backdrop-filter: blur(4px); }
+
+        .container { padding: 24px; max-width: 540px; margin: -20px auto 0; position: relative; z-index: 10; }
+        .screen { display: none; animation: fadeUp 0.4s ease forwards; }
+        .active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: var(--card); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+        
+        .role-switch { 
+            background: var(--bg); border: 1px solid var(--border); border-radius: 16px; 
+            padding: 5px; display: flex; margin-bottom: 24px; position: relative; cursor: pointer;
+        }
+        .role-btn { flex: 1; text-align: center; padding: 12px; font-size: 13px; font-weight: 700; z-index: 2; color: var(--text-muted); }
+        .role-btn.active { color: white; }
+        .role-bg { 
+            position: absolute; top: 5px; left: 5px; width: calc(50% - 5px); height: calc(100% - 10px); 
+            background: var(--primary); border-radius: 12px; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 1;
+        }
+        .role-switch.driver-mode .role-bg { transform: translateX(100%); background: var(--driver); }
+
+        .profile-hero { text-align: center; padding: 30px 20px; }
+        .avatar-lg { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 4px solid var(--card); box-shadow: 0 8px 24px rgba(0,0,0,0.1); margin-bottom: 16px; cursor: pointer; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 32px; color: white; }
+        .user-name { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+        .user-email { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+
+        .input-group { margin-bottom: 20px; }
+        label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
+        input, textarea { width: 100%; padding: 16px; border: 2px solid var(--border); border-radius: 16px; font-size: 15px; outline: none; background: var(--card); color: var(--text); font-weight: 600; }
+        input:focus { border-color: var(--primary); }
+        
+        .item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .item-chip { 
+            padding: 16px; border: 2px solid var(--border); border-radius: 16px; background: var(--card); 
+            cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+        }
+        .item-chip span { font-size: 24px; }
+        .item-chip p { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+        .item-chip.selected { border-color: var(--primary); background: rgba(15, 118, 110, 0.05); }
+        .item-chip.selected p { color: var(--primary); }
+
+        .btn { width: 100%; padding: 18px; border: none; border-radius: 16px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 8px 20px -6px rgba(15, 118, 110, 0.4); }
+        .btn-driver { background: var(--driver); color: white; box-shadow: 0 8px 20px -6px rgba(37, 99, 235, 0.4); }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text); margin-top: 12px; }
+        .btn-google { background: white; color: #ea4335; border: 1px solid var(--border); margin-bottom: 12px; }
+        .btn:active { transform: scale(0.98); }
+
+        .frete-card { background: var(--card); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+        .frete-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .frete-price { font-size: 22px; font-weight: 800; color: var(--primary); }
+        .frete-route { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
+        
+        .pay-box { background: rgba(15, 118, 110, 0.05); border: 2px dashed var(--primary); padding: 24px; border-radius: var(--radius); text-align: center; margin: 20px 0; }
+        #qrcode { margin: 20px auto; padding: 12px; background: white; border-radius: 16px; width: fit-content; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        
+        .track-hero { background: linear-gradient(135deg, #ecfdf5, #d1fae5); padding: 30px; border-radius: var(--radius); text-align: center; margin-bottom: 24px; border: 2px solid var(--primary-light); }
+        .timer-display { font-size: 42px; font-weight: 800; color: var(--primary); letter-spacing: -2px; margin-top: 10px; }
+
+        nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--card); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 16px 0 24px; z-index: 1000; backdrop-filter: blur(12px); }
+        nav button { background: none; border: none; color: var(--text-muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; opacity: 0.6; }
+        nav button.active { color: var(--primary); font-weight: 700; opacity: 1; }
+        nav span { font-size: 24px; transition: transform 0.2s; }
+        nav button.active span { transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo-wrap">
+        <svg class="logo-svg" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <h1>Fretta</h1>
+    </div>
+    <span class="badge">v10.0 Prod</span>
+</header>
+
+<div class="container">
+    <!-- PERFIL -->
+    <div id="tab-profile" class="screen active">
+        <div id="logged-out-view" class="card profile-hero">
+            <h2 style="margin-bottom:12px;">Bem-vindo ao Fretta</h2>
+            <p style="color:var(--text-muted); margin-bottom:24px; font-size:14px;">Logística inteligente e segura.</p>
+            <button class="btn btn-google" onclick="loginWithGoogle()">
+                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"/></svg>
+                Entrar com Google
+            </button>
+            <button class="btn btn-primary" onclick="loginAsGuest()">Entrar como Visitante</button>
+        </div>
+
+        <div id="logged-in-view" style="display:none;">
+            <div class="card profile-hero">
+                <div id="user-avatar" class="avatar-lg" onclick="alert('Foto salva localmente!')">👤</div>
+                <h3 id="user-name" class="user-name">Usuário</h3>
+                <p id="user-email" class="user-email">teste@fretta.app</p>
+                
+                <label style="text-align:left; margin-bottom:12px;">Modo de Operação</label>
+                <div class="role-switch" id="role-switch" onclick="toggleRole()">
+                    <div class="role-bg"></div>
+                    <div class="role-btn active">Cliente</div>
+                    <div class="role-btn">Motorista</div>
+                </div>
+                <button class="btn btn-outline" onclick="logout()">Sair da Conta</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CLIENTE: PEDIR FRETE -->
+    <div id="tab-client" class="screen">
+        <div class="card">
+            <label>O que vamos levar?</label>
+            <div class="item-grid" id="itemList">
+                <div class="item-chip" onclick="selectItem(this, 'Sofá')"><span>🛋️</span><p>Sofá</p></div>
+                <div class="item-chip" onclick="selectItem(this, 'Geladeira')"><span>❄️</span><p>Geladeira</p></div>
+                <div class="item-chip" onclick="selectItem(this, 'Armário')"><span></span><p>Armário</p></div>
+                <div class="item-chip" onclick="selectItem(this, 'Lavadora')"><span>🧺</span><p>Lavadora</p></div>
+                <div class="item-chip" onclick="selectItem(this, 'Cama')"><span>🛏️</span><p>Cama</p></div>
+                <div class="item-chip" onclick="selectItem(this, 'Outros')"><span>✏️</span><p>Outros</p></div>
+            </div>
+            
+            <label>Roteiro</label>
+            <div class="input-group">
+                <input type="text" id="origemInput" placeholder=" Endereço de coleta">
+                <input type="text" id="destinoInput" placeholder=" Endereço de entrega" style="margin-top:12px;">
+            </div>
+            <button class="btn btn-primary" id="btnCalc" onclick="calculateRoute()">Calcular Frete</button>
+        </div>
+    </div>
+
+    <!-- PAGAMENTO -->
+    <div id="tab-pay" class="screen">
+        <div class="card">
+            <h2 style="margin-bottom:20px;">Finalizar Pedido</h2>
+            <div class="pay-box">
+                <p style="font-size:13px; color:var(--text-muted); font-weight:600;">VALOR TOTAL</p>
+                <strong style="font-size:32px; color:var(--primary);" id="payTotal">R$ 0,00</strong>
+            </div>
+            <div id="pix-area" style="display:none; text-align:center;">
+                <div id="qrcode"></div>
+                <p style="font-size:12px; color:var(--text-muted); margin-top:12px;">Escaneie ou copie o código</p>
+                <textarea readonly id="pix-code" style="height:50px; font-size:10px; margin-top:8px; text-align:center;"></textarea>
+            </div>
+            <button class="btn btn-primary" style="margin-top:20px;" onclick="confirmPayment()">Confirmar Pagamento</button>
+            <button class="btn btn-outline" onclick="goToTab('client')">Voltar</button>
+        </div>
+    </div>
+
+    <!-- MOTORISTA: GANHOS -->
+    <div id="tab-driver" class="screen">
+        <div style="padding:0 0 20px;">
+            <h2 style="margin-bottom:16px;">Fretes Disponíveis</h2>
+            <div id="driver-feed">
+                <div class="card" style="text-align:center; padding:40px; color:var(--text-muted);">Buscando oportunidades...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RASTREIO -->
+    <div id="tab-track" class="screen">
+        <div class="track-hero">
+            <p style="font-size:14px; font-weight:700; color:var(--primary);">STATUS DA ENTREGA</p>
+            <p id="track-status" style="font-size:15px; color:var(--text); margin-top:8px; font-weight:600;">Aguardando início...</p>
+            <div class="timer-display" id="cronometro">05:00</div>
+        </div>
+        <div class="card">
+            <p style="font-size:14px; color:var(--text-muted); line-height:1.6;" id="track-details">Detalhes da rota aparecerão aqui.</p>
+        </div>
+        <button class="btn btn-primary" onclick="finishOrder()">Concluir Entrega</button>
+    </div>
+</div>
+
+<nav>
+    <button onclick="goToTab('profile', this)" class="active"><span>👤</span>Perfil</button>
+    <button onclick="goToTab('client', this)" id="nav-client"><span>📦</span>Pedir</button>
+    <button onclick="goToTab('driver', this)" id="nav-driver" style="display:none;"><span>🚚</span>Ganhos</button>
+    <button onclick="goToTab('track', this)"><span>📍</span>Rastreio</button>
+</nav>
+
+<script>
+    // CONFIGURAÇÃO SUPABASE (OPCIONAL - SE DER ERRO, USA LOCAL)
+    const SUPABASE_URL = 'https://gnwjmlozrxtyftrildgx.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdud2ptbG96cnh0eWZ0cmlsZGd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2NDcwODYsImV4cCI6MjEwNzIyMzA4Nn0.PgeBDGWoLjobPQ5zz7o6r8KzPbaw2k97ceAh6AAW-qc';
+    let supabase = null;
+    try { supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) { console.log("Supabase offline"); }
+    
+    const mp = new MercadoPago('APP_USR-219e9c29-2a94-499d-a803-ea0fca6cc338', { locale: 'pt-BR' });
+    
+    let currentUser = null;
+    let userRole = localStorage.getItem('fretta_role') || 'client';
+    let currentOrder = {};
+    let timerInterval = null;
+    let useLocalMode = false;
+
+    // AUTH HÍBRIDO
+    async function checkUser() {
+        if (!supabase) { activateLocalMode(); return; }
+        
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                currentUser = session.user;
+                renderProfile();
+            } else {
+                document.getElementById('logged-out-view').style.display = 'block';
+                document.getElementById('logged-in-view').style.display = 'none';
+            }
+        } catch(e) {
+            console.log("Supabase indisponível, ativando modo local");
+            activateLocalMode();
+        }
+        updateUI();
+    }
+
+    function activateLocalMode() {
+        useLocalMode = true;
+        const savedUser = localStorage.getItem('fretta_user');
+        if (savedUser) {
+            currentUser = JSON.parse(savedUser);
+            renderProfile();
+        } else {
+            document.getElementById('logged-out-view').style.display = 'block';
+            document.getElementById('logged-in-view').style.display = 'none';
+        }
+    }
+
+    function renderProfile() {
+        document.getElementById('logged-out-view').style.display = 'none';
+        document.getElementById('logged-in-view').style.display = 'block';
+        document.getElementById('user-name').innerText = currentUser.name || currentUser.user_metadata?.full_name || 'Usuário';
+        document.getElementById('user-email').innerText = currentUser.email;
+    }
+
+    async function loginWithGoogle() {
+        if (!supabase || useLocalMode) {
+            alert("Login Google só funciona em domínio HTTPS (Netlify/Vercel). Usando modo visitante.");
+            loginAsGuest();
+            return;
+        }
+        try { 
+            await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } }); 
+        } catch(e) { 
+            alert('Erro Google: ' + e.message); 
+            loginAsGuest();
+        }
+    }
+
+    function loginAsGuest() {
+        currentUser = { 
+            id: 'local_' + Date.now(), 
+            name: 'Visitante Teste', 
+            email: 'teste@fretta.app',
+            user_metadata: { full_name: 'Visitante Teste' }
+        };
+        if (!useLocalMode) {
+            try { localStorage.setItem('fretta_user', JSON.stringify(currentUser)); } catch(e) {}
+        }
+        renderProfile();
+        updateUI();
+    }
+
+    function logout() { 
+        if (supabase && !useLocalMode) supabase.auth.signOut();
+        localStorage.removeItem('fretta_user');
+        currentUser = null;
+        document.getElementById('logged-out-view').style.display = 'block';
+        document.getElementById('logged-in-view').style.display = 'none';
+        goToTab('profile');
+    }
+
+    // ROLE & NAVIGATION
+    function toggleRole() {
+        userRole = userRole === 'client' ? 'driver' : 'client';
+        localStorage.setItem('fretta_role', userRole);
+        if (supabase && !useLocalMode && currentUser) {
+            supabase.from('users').update({ role: userRole }).eq('id', currentUser.id).catch(() => {});
+        }
+        updateUI();
+    }
+
+    function updateUI() {
+        const sw = document.getElementById('role-switch');
+        const navC = document.getElementById('nav-client');
+        const navD = document.getElementById('nav-driver');
+        
+        if(userRole === 'driver') {
+            sw.classList.add('driver-mode'); navC.style.display = 'none'; navD.style.display = 'flex';
+            goToTab('driver'); loadDriverFeed();
+        } else {
+            sw.classList.remove('driver-mode'); navC.style.display = 'flex'; navD.style.display = 'none';
+            goToTab('client');
+        }
+    }
+
+    function goToTab(id, btn) {
+        document.querySelectorAll('.screen').forEach(c => c.classList.remove('active'));
+        document.getElementById('tab-' + id).classList.add('active');
+        if(btn) {
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        window.scrollTo(0,0);
+    }
+
+    // CLIENT LOGIC
+    function selectItem(el, val) {
+        document.querySelectorAll('.item-chip').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        currentOrder.item = val;
+    }
+
+    async function calculateRoute() {
+        if(!currentUser) return alert("Faça login!");
+        if(!currentOrder.item) return alert("Selecione um item!");
+        const o = document.getElementById('origemInput').value;
+        const d = document.getElementById('destinoInput').value;
+        if(!o || !d) return alert("Preencha os endereços!");
+
+        const btn = document.getElementById('btnCalc');
+        btn.disabled = true; btn.innerText = "Calculando...";
+        
+        setTimeout(async () => {
+            const dist = Math.floor(Math.random() * 15) + 5;
+            const total = ((dist * 3.5) + 30) * 1.15;
+            
+            currentOrder = { 
+                id: 'ord_' + Date.now(),
+                clientUid: currentUser.id,
+                clientName: currentUser.name || currentUser.user_metadata?.full_name || 'Cliente',
+                item: currentOrder.item, 
+                origem: o, destino: d, dist, total, status: 'pending' 
+            };
+            
+            if (supabase && !useLocalMode) {
+         
